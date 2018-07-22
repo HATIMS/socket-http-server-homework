@@ -1,6 +1,8 @@
 import socket
 import sys
 import traceback
+import os
+import mimetypes
 
 def response_ok(body=b"This is a minimal response", mimetype=b"text/plain"):
     """
@@ -40,7 +42,11 @@ def response_not_found():
     """Returns a 404 Not Found response"""
 
     # TODO: Implement response_not_found
-    return b""
+    return b"\r\n".join([
+        b"HTTP/1.1 404 Not Found",
+        b"",
+        b"resporce not on this server!",
+    ])
 
 
 def parse_request(request):
@@ -97,8 +103,19 @@ def response_path(path):
     # result of executing `make_time.py`. But you need only return the
     # CONTENTS of `make_time.py`.
     
+    abs_path = os.path.join(os.getcwd(), 'webroot', path.strip('/'))
     content = b"not implemented"
     mime_type = b"not implemented"
+
+    if os.path.isfile(abs_path):
+        with open(abs_path, 'rb') as f:
+            content = f.read()
+        mime_type = mimetypes.guess_type(abs_path)[0].encode()
+    elif os.path.isdir(abs_path):
+        content = ' '.join(os.listdir(abs_path)).encode()
+        mime_type = b'text/plain'
+    else:
+        raise NameError
 
     return content, mime_type
 
@@ -134,6 +151,7 @@ def server(log_buffer=sys.stderr):
 
                     # TODO: Use response_path to retrieve the content and the mimetype,
                     # based on the request path.
+                    body, mimetype = response_path(path)
 
                     # TODO:
                     # If response_path raised
@@ -141,9 +159,11 @@ def server(log_buffer=sys.stderr):
                     # use the content and mimetype from response_path to build a 
                     # response_ok.
                     response = response_ok(
-                        body=b"Welcome to my web server",
-                        mimetype=b"text/plain"
+                        body,
+                        mimetype
                     )
+                except NameError:
+                    response = response_not_found()
                 except NotImplementedError:
                     response = response_method_not_allowed()
 
